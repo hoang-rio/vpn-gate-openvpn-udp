@@ -5,6 +5,10 @@ from urllib import request
 
 class VPNGate():
 
+    def __init__(self, base_url, file_path):
+        self.base_url = base_url
+        self.file_path = file_path
+
     def get_html(self, url):
         req = request.Request(url)
         with request.urlopen(req) as response:
@@ -22,8 +26,8 @@ class VPNGate():
         with open(file_path, 'w', encoding='utf-8') as write_to_file:
             write_to_file.write(content)
 
-    def run(self, vpngate_base_url, csv_file_path):
-        html = self.get_html(vpngate_base_url)
+    def run(self):
+        html = self.get_html(self.base_url)
         pq = PyQuery(html)
         _list_server = []
         _list_server.append([
@@ -39,4 +43,4 @@ class VPNGate():
                 prop = item.split('=')
                 server.append(prop[1])
             _list_server.append(server)
-        self.write_to_file(csv_file_path, self.to_csv(_list_server))
+        self.write_to_file(self.file_path, self.to_csv(_list_server))
