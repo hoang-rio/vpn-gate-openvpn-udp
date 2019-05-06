@@ -139,9 +139,9 @@ class VPNGate():
                     server[0] = props[1].replace('.opengw.net', '')
                 elif props[0] == 'ip':
                     server[1] = props[1]
-                elif props[0] == 'tcp' and props[1] != '0':
+                elif props[0] == 'tcp':
                     server[15] = props[1]
-                elif props[0] == 'udp' and props[1] != '0':
+                elif props[0] == 'udp':
                     server[16] = props[1]
             server = self.__fill_other_value(all_td, server)
             # OpenVPN_ConfigData_Base64
