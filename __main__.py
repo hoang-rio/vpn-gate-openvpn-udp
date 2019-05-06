@@ -1,7 +1,9 @@
 
 from vpngate import VPNGate
 from datetime import datetime
+# Edit it to use with mirror site
 vpngate_base_url = "https://www.vpngate.net"
+# csv output file
 csv_file_path = "output/udp"
 
 vpngate = VPNGate(vpngate_base_url, csv_file_path)
