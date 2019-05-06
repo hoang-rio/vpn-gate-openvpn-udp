@@ -136,7 +136,7 @@ class VPNGate():
                 if len(props) < 2:
                     continue
                 if props[0] == 'fqdn':
-                    server[0] = props[1]
+                    server[0] = props[1].replace('.opengw.net', '')
                 elif props[0] == 'ip':
                     server[1] = props[1]
                 elif props[0] == 'tcp' and props[1] != '0':
