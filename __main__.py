@@ -5,7 +5,7 @@ from datetime import datetime
 vpngate_base_url = "https://www.vpngate.net"
 # csv output file
 csv_file_path = "output/udp"
-sleep_time = 0
+sleep_time = 300
 
 vpngate = VPNGate(vpngate_base_url, csv_file_path, sleep_time)
 start_time = datetime.now()
