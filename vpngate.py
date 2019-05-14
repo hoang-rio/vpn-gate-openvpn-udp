@@ -4,24 +4,33 @@ from urllib import request
 import re
 import csv
 import base64
+import time
+import os
+from datetime import datetime
 
 
 class VPNGate():
 
-    def __init__(self, __base_url, __file_path):
+    def __init__(self, __base_url, __file_path, __sleep_time):
         self.__base_url = __base_url
         self.__file_path = __file_path
+        self.__sleep_time = __sleep_time
         self.__list_server = [['*vpn_servers']]
 
     def __get_url(self, url):
-        req = request.Request(url)
-        with request.urlopen(req) as response:
-            if response.headers.get_content_charset() == None:
-                encoding = 'utf-8'
-            else:
-                encoding = response.headers.get_content_charset()
-            html = response.read().decode(encoding)
-        return html
+        try:
+            req = request.Request(url)
+            with request.urlopen(req) as response:
+                if response.headers.get_content_charset() == None:
+                    encoding = 'utf-8'
+                else:
+                    encoding = response.headers.get_content_charset()
+                html = response.read().decode(encoding)
+            return html
+        except Exception as ex:
+            print("Method: {0} throw exception: {1} at: {2}".format(
+                "__get_url", ex, datetime.now()))
+            return None
 
     def __write_csv_file(self, __file_path):
         csv.register_dialect('myDialect', delimiter=',', lineterminator='\n')
@@ -96,65 +105,86 @@ class VPNGate():
         return server
 
     def __get_openvpn_config_base64(self, item_params):
-        request_url = self.__base_url + \
-            '/common/openvpn_download.aspx?sid=%s&%s&host=%s&port=%s&hid=%s&/vpngate_%s.ovpn'
-        for item in item_params:
-            props = item.split('=')
-            if len(props) < 2:
-                continue
-            elif props[0] == 'ip':
-                ip = props[1]
-            elif props[0] == 'tcp':
-                tcp_port = props[1]
-            elif props[0] == 'udp':
-                udp_port = props[1]
-            elif props[0] == 'sid':
-                sid = props[1]
-            elif props[0] == 'hid':
-                hid = props[1]
-        if tcp_port != '0':
-            request_url = request_url % (
-                sid, 'tcp=1', ip, tcp_port, hid, ip + '_tcp_'+tcp_port)
-        elif udp_port != '0':
-            request_url = request_url % (
-                sid, 'udp=1', ip, udp_port, hid, ip + '_udp_'+udp_port)
-        openvpn_config_string = self.__get_url(request_url)
-        base64_config = base64.b64encode(openvpn_config_string.encode('utf-8'))
-        base64_config = base64_config.decode('utf-8')
-        return base64_config
+        try:
+            request_url = self.__base_url + \
+                '/common/openvpn_download.aspx?sid=%s&%s&host=%s&port=%s&hid=%s&/vpngate_%s.ovpn'
+            for item in item_params:
+                props = item.split('=')
+                if len(props) < 2:
+                    continue
+                elif props[0] == 'ip':
+                    ip = props[1]
+                elif props[0] == 'tcp':
+                    tcp_port = props[1]
+                elif props[0] == 'udp':
+                    udp_port = props[1]
+                elif props[0] == 'sid':
+                    sid = props[1]
+                elif props[0] == 'hid':
+                    hid = props[1]
+            if tcp_port != '0':
+                request_url = request_url % (
+                    sid, 'tcp=1', ip, tcp_port, hid, ip + '_tcp_'+tcp_port)
+            elif udp_port != '0':
+                request_url = request_url % (
+                    sid, 'udp=1', ip, udp_port, hid, ip + '_udp_'+udp_port)
+            openvpn_config_string = self.__get_url(request_url)
+            if openvpn_config_string is None:
+                return None
+            base64_config = base64.b64encode(
+                openvpn_config_string.encode('utf-8'))
+            base64_config = base64_config.decode('utf-8')
+            return base64_config
+        except Exception as ex:
+            print("Method: {0} throw exception: {1} at: {2}".format(
+                "__get_openvpn_config_base64", ex, datetime.now()))
+            return None
 
     def __process_item(self, index, el):
         all_td = PyQuery(el).find('td')
         a_tag = all_td.eq(6).find('a[href^="do_openvpn.aspx?"]')
-        if a_tag.length > 0:
-            href = a_tag.attr('href').replace('do_openvpn.aspx?', '')
-            items = href.split('&')
-            server = ['', '', '', '', '', '', '', '',
-                      '', '', '', '', '', '', '', '', '']
-            for item in items:
-                props = item.split('=')
-                if len(props) < 2:
-                    continue
-                if props[0] == 'fqdn':
-                    server[0] = props[1].replace('.opengw.net', '')
-                elif props[0] == 'ip':
-                    server[1] = props[1]
-                elif props[0] == 'tcp':
-                    server[15] = props[1]
-                elif props[0] == 'udp':
-                    server[16] = props[1]
-            server = self.__fill_other_value(all_td, server)
-            # OpenVPN_ConfigData_Base64
-            server[14] = self.__get_openvpn_config_base64(items)
-            self.__list_server.append(server)
+        if a_tag.length == 0:
+            return
+        href = a_tag.attr('href').replace('do_openvpn.aspx?', '')
+        items = href.split('&')
+        server = ['', '', '', '', '', '', '', '',
+                  '', '', '', '', '', '', '', '', '']
+        for item in items:
+            props = item.split('=')
+            if len(props) < 2:
+                continue
+            if props[0] == 'fqdn':
+                server[0] = props[1].replace('.opengw.net', '')
+            elif props[0] == 'ip':
+                server[1] = props[1]
+            elif props[0] == 'tcp':
+                server[15] = props[1]
+            elif props[0] == 'udp':
+                server[16] = props[1]
+        server = self.__fill_other_value(all_td, server)
+        # OpenVPN_ConfigData_Base64
+        server[14] = self.__get_openvpn_config_base64(items)
+        if server[14] is None:
+            return  # openvpn_config_base64 is none skip this item
+        if self.__sleep_time > 0:
+            time.sleep(self.__sleep_time)
+        self.__list_server.append(server)
 
     def run(self):
-        html = self.__get_url(self.__base_url+'/en')
-        pq = PyQuery(html)
-        self.__list_server.append([
-            '#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort'
-        ])
-        openvpn_links = pq('#vg_hosts_table_id').eq(2).find('tr')
-        openvpn_links.each(self.__process_item)
+        lock_file_path = 'vpngate.lock'
+        if (os.path.exists(lock_file_path)):
+            print("Lock file found. Script currently runing.\n")
+        else:
+            with open(lock_file_path, 'w') as lock_file:
+                lock_file.write("{0}".format(datetime.now()))
+            html = self.__get_url(self.__base_url+'/en/')
+            pq = PyQuery(html)
+            self.__list_server.append([
+                '#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort'
+            ])
+            openvpn_links = pq('#vg_hosts_table_id').eq(2).find('tr')
+            openvpn_links.each(self.__process_item)
 
-        self.__write_csv_file(self.__file_path)
+            self.__write_csv_file(self.__file_path)
+            # Remove lock when complete
+            os.remove(lock_file_path)
