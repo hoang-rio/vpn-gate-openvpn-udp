@@ -175,16 +175,23 @@ class VPNGate():
         if (os.path.exists(lock_file_path)):
             print("Lock file found. Script currently runing.\n")
         else:
-            with open(lock_file_path, 'w') as lock_file:
-                lock_file.write("{0}".format(datetime.now()))
-            html = self.__get_url(self.__base_url+'/en/')
-            pq = PyQuery(html)
-            self.__list_server.append([
-                '#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort'
-            ])
-            openvpn_links = pq('#vg_hosts_table_id').eq(2).find('tr')
-            openvpn_links.each(self.__process_item)
+            try:
+                with open(lock_file_path, 'w') as lock_file:
+                    lock_file.write("{0}".format(datetime.now()))
+                html = self.__get_url(self.__base_url+'/en/')
+                pq = PyQuery(html)
+                self.__list_server.append([
+                    '#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort'
+                ])
+                openvpn_links = pq('#vg_hosts_table_id').eq(2).find('tr')
+                openvpn_links.each(self.__process_item)
 
-            self.__write_csv_file(self.__file_path)
-            # Remove lock when complete
-            os.remove(lock_file_path)
+                self.__write_csv_file(self.__file_path)
+                # Remove lock when complete
+                os.remove(lock_file_path)
+            except Exception as ex:
+                print("Method: {0} throw exception: {1} at: {2}".format(
+                    "run", ex, datetime.now()))
+                if os.path.exists(lock_file_path):
+                    # Remove lock when complete
+                    os.remove(lock_file_path)
