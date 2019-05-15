@@ -172,12 +172,23 @@ class VPNGate():
 
     def run(self):
         lock_file_path = 'vpngate.lock'
+        can_run = True
         if (os.path.exists(lock_file_path)):
-            print("Lock file found. Script currently runing.\n")
-        else:
+            with open(lock_file_path, 'r') as lock_file:
+                lock_time = datetime.strptime(lock_file.read(), '%Y-%m-%d %H:%M:%S.%f')
+                lock_file.close()
+                time_from_last_lock = datetime.now() - lock_time
+                if time_from_last_lock.total_seconds() > 60 * 20:
+                    can_run = True
+                    print("Lock file expired. Script coninue to run.\n")
+                else:
+                    can_run = False
+                    print("Lock file found. Script currently runing.\n")
+        if can_run:
             try:
                 with open(lock_file_path, 'w') as lock_file:
                     lock_file.write("{0}".format(datetime.now()))
+                    lock_file.close()
                 html = self.__get_url(self.__base_url+'/en/')
                 if html is not None:
                     pq = PyQuery(html)
@@ -186,13 +197,11 @@ class VPNGate():
                     ])
                     openvpn_links = pq('#vg_hosts_table_id').eq(2).find('tr')
                     openvpn_links.each(self.__process_item)
-
                     self.__write_csv_file(self.__file_path)
-                # Remove lock when complete
-                os.remove(lock_file_path)
             except Exception as ex:
                 print("Method: {0} throw exception: {1} at: {2}".format(
                     "run", ex, datetime.now()))
+            finally:
                 if os.path.exists(lock_file_path):
                     # Remove lock when complete
                     os.remove(lock_file_path)
