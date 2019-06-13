@@ -2,5 +2,5 @@ venv/
 .vscode/
 __pycache__
 *.csv
-/output
+/output/*
 *.lock
