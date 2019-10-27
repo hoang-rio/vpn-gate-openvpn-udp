@@ -198,6 +198,9 @@ class VPNGate():
                     ])
                     openvpn_links = pq('#vg_hosts_table_id').eq(2).find('tr')
                     openvpn_links.each(self.__process_item)
+                    if len(self.__list_server) <= 1:
+                        print("Skip write file because empty server list")
+                        return
                     self.__write_csv_file(self.__file_path)
             except Exception as ex:
                 print("Method: {0} throw exception: {1} at: {2}".format(
