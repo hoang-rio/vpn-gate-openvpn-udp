@@ -20,7 +20,7 @@ class VPNGate():
     def __get_url(self, url):
         try:
             req = request.Request(url)
-            with request.urlopen(req) as response:
+            with request.urlopen(req,timeout=8) as response:
                 if response.headers.get_content_charset() == None:
                     encoding = 'utf-8'
                 else:
