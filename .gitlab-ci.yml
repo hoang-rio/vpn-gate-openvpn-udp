@@ -1,0 +1,13 @@
+image: rackspacedot/python37
+
+stages:
+ - run
+
+run_vpngate:
+  stage: run
+  script:
+   - python -m venv venv
+   - source venv/bin/activate
+   - pip install -r requirements.txt
+   - python .
+   - cat udp
