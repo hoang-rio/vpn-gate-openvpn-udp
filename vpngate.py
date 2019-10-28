@@ -20,7 +20,7 @@ class VPNGate():
     def __get_url(self, url):
         try:
             req = request.Request(url)
-            with request.urlopen(req,timeout=8) as response:
+            with request.urlopen(req, timeout=8) as response:
                 if response.headers.get_content_charset() == None:
                     encoding = 'utf-8'
                 else:
@@ -101,7 +101,8 @@ class VPNGate():
         # Operator
         server[12] = all_td.eq(8).find('b').eq(0).text().replace("By ", "")
         # Message
-        message = all_td.eq(8).find('i').eq(1).text().replace('"', '').replace(',', ' ');
+        message = all_td.eq(8).find('i').eq(
+            1).text().replace('"', '').replace(',', ' ')
         server[13] = re.sub(r"\n", " ", message)
         return server
 
@@ -176,7 +177,8 @@ class VPNGate():
         can_run = True
         if (os.path.exists(lock_file_path)):
             with open(lock_file_path, 'r') as lock_file:
-                lock_time = datetime.strptime(lock_file.read(), '%Y-%m-%d %H:%M:%S.%f')
+                lock_time = datetime.strptime(
+                    lock_file.read(), '%Y-%m-%d %H:%M:%S.%f')
                 lock_file.close()
                 time_from_last_lock = datetime.now() - lock_time
                 if time_from_last_lock.total_seconds() > 60 * 20:
@@ -198,9 +200,9 @@ class VPNGate():
                     ])
                     openvpn_links = pq('#vg_hosts_table_id').eq(2).find('tr')
                     openvpn_links.each(self.__process_item)
-                    if len(self.__list_server) <= 1:
-                        print("Skip write file because empty server list")
-                        return
+                    if len(self.__list_server) < 2:
+                        print("Skip write file because empty server list")
+                        return
                     self.__write_csv_file(self.__file_path)
             except Exception as ex:
                 print("Method: {0} throw exception: {1} at: {2}".format(
