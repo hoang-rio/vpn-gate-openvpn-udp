@@ -135,8 +135,8 @@ class VPNGate():
                 return None
             openvpn_config_string =  re.sub(r"#.+?$", "", openvpn_config_string, flags=re.MULTILINE)
             openvpn_config_string = re.sub(r"\n+", "\n", openvpn_config_string, flags=re.MULTILINE)
-            openvpn_config_string = re.sub(r"(\n\r)+", "\n\r", openvpn_config_string, flags=re.MULTILINE)
-            openvpn_config_string = re.sub(r"(\r\n)+", "\r\n", openvpn_config_string, flags=re.MULTILINE)
+            openvpn_config_string = re.sub(r"(\n\r|\r\n)+", r"\1", openvpn_config_string, flags=re.MULTILINE)
+            openvpn_config_string = re.sub(r"^\n\r\n", "", openvpn_config_string, flags=re.MULTILINE)
             base64_config = base64.b64encode(
                 openvpn_config_string.encode('utf-8'))
             base64_config = base64_config.decode('utf-8')
