@@ -7,17 +7,11 @@ import base64
 import time
 import os
 from datetime import datetime
+import threading
 
 
-class VPNGate():
-
-    def __init__(self, __base_url, __file_path, __sleep_time):
-        self.__base_url = __base_url
-        self.__file_path = __file_path
-        self.__sleep_time = __sleep_time
-        self.__list_server = [['*vpn_servers']]
-
-    def __get_url(self, url):
+class VPNGateBase():
+    def _get_url(self, url):
         try:
             req = request.Request(url)
             with request.urlopen(req, timeout=8) as response:
@@ -29,19 +23,21 @@ class VPNGate():
             return html
         except Exception as ex:
             print("Method: {0} throw exception: {1} at: {2}".format(
-                "__get_url", ex, datetime.now()))
+                "_get_url", ex, datetime.now()))
             return None
 
-    def __write_csv_file(self, __file_path):
-        csv.register_dialect('myDialect', delimiter=',', lineterminator='\n')
-        with open(__file_path, 'w', encoding='utf-8') as write_file:
-            writer = csv.writer(write_file, dialect="myDialect")
-            writer.writerows(self.__list_server)
-        write_file.close()
 
+class VPNGateItem(VPNGateBase, threading.Thread):
+    def _set_data(self, *args, **kwargs):
+        """
+        Set class attribute
+        """
+        for key, value in kwargs.items():
+            self.__setattr__(key, value)
     ##
     # Fill another value
     ##
+
     def __fill_other_value(self, all_td, server):
         # Score
         server[2] = int(all_td.eq(9).text().replace(',', ''))
@@ -79,7 +75,7 @@ class VPNGate():
         total_user_text = all_td.eq(2).text()
         regex = r"Total\s([\d,]+)\susers"
         matches = re.finditer(regex, total_user_text)
-        for matchNum, match in enumerate(matches, start=1):
+        for match_mum, match in enumerate(matches, start=1):
             total_user = match.group(1)
             server[9] = int(total_user.replace(',', ''))
             break
@@ -108,7 +104,7 @@ class VPNGate():
 
     def __get_openvpn_config_base64(self, item_params):
         try:
-            request_url = self.__base_url + \
+            request_url = self.__getattribute__('__base_url') + \
                 '/common/openvpn_download.aspx?sid=%s&%s&host=%s&port=%s&hid=%s&/vpngate_%s.ovpn'
             for item in item_params:
                 props = item.split('=')
@@ -130,13 +126,17 @@ class VPNGate():
             elif udp_port != '0':
                 request_url = request_url % (
                     sid, 'udp=1', ip, udp_port, hid, ip + '_udp_'+udp_port)
-            openvpn_config_string = self.__get_url(request_url)
+            openvpn_config_string = self._get_url(request_url)
             if openvpn_config_string is None:
                 return None
-            openvpn_config_string =  re.sub(r"#.+?$", "", openvpn_config_string, flags=re.MULTILINE)
-            openvpn_config_string = re.sub(r"\n+", "\n", openvpn_config_string, flags=re.MULTILINE)
-            openvpn_config_string = re.sub(r"(\n\r|\r\n)+", r"\1", openvpn_config_string, flags=re.MULTILINE)
-            openvpn_config_string = re.sub(r"^\n\r\n", "", openvpn_config_string, flags=re.MULTILINE)
+            openvpn_config_string = re.sub(
+                r"#.+?$", "", openvpn_config_string, flags=re.MULTILINE)
+            openvpn_config_string = re.sub(
+                r"\n+", "\n", openvpn_config_string, flags=re.MULTILINE)
+            openvpn_config_string = re.sub(
+                r"(\n\r|\r\n)+", r"\1", openvpn_config_string, flags=re.MULTILINE)
+            openvpn_config_string = re.sub(
+                r"^\n\r\n", "", openvpn_config_string, flags=re.MULTILINE)
             base64_config = base64.b64encode(
                 openvpn_config_string.encode('utf-8'))
             base64_config = base64_config.decode('utf-8')
@@ -146,8 +146,8 @@ class VPNGate():
                 "__get_openvpn_config_base64", ex, datetime.now()))
             return None
 
-    def __process_item(self, index, el):
-        all_td = PyQuery(el).find('td')
+    def __process_item(self):
+        all_td = PyQuery(self.__getattribute__('__el')).find('td')
         a_tag = all_td.eq(6).find('a[href^="do_openvpn.aspx?"]')
         if a_tag.length == 0:
             return
@@ -172,13 +172,70 @@ class VPNGate():
         server[14] = self.__get_openvpn_config_base64(items)
         if server[14] is None:
             return  # openvpn_config_base64 is none skip this item
-        if self.__sleep_time > 0:
-            time.sleep(self.__sleep_time)
-        self.__list_server.append(server)
+        if self.__getattribute__('__sleep_time') > 0:
+            time.sleep(self.__getattribute__('__sleep_time'))
+        self.lock.acquire()
+        self.__getattribute__('__list_server').append(server)
+        self.lock.release()
+
+    def run(self):
+        self.lock = threading.Lock()
+        self.__process_item()
+
+
+class VPNGate(VPNGateBase):
+
+    def __init__(self, __base_url, __file_path, __sleep_time):
+        self.__base_url = __base_url
+        self.__file_path = __file_path
+        self.__sleep_time = __sleep_time
+        self.__list_server = [['*vpn_servers']]
+        self._threads = []
+
+    def __write_csv_file(self, __file_path):
+        csv.register_dialect('myDialect', delimiter=',', lineterminator='\n')
+        with open(__file_path, 'w', encoding='utf-8') as write_file:
+            writer = csv.writer(write_file, dialect="myDialect")
+            writer.writerows(self.__list_server)
+        write_file.close()
+
+    def __process_item(self, index, el):
+        t = VPNGateItem()
+        t._set_data(__index=index, __el=el, __base_url=self.__base_url, __file_path=self.__file_path,
+                    __sleep_time=self.__sleep_time, __list_server=self.__list_server)
+        self._threads.append(t)
+        t.start()
+
+    def start_process(self, lock_file_path):
+        try:
+            with open(lock_file_path, 'w') as lock_file:
+                lock_file.write("{0}".format(datetime.now()))
+                lock_file.close()
+            html = self._get_url(self.__base_url+'/en/')
+            if html is not None:
+                pq = PyQuery(html)
+                self.__list_server.append([
+                    '#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort'
+                ])
+                openvpn_links = pq('#vg_hosts_table_id').eq(2).find('tr')
+                openvpn_links.each(self.__process_item)
+                # Join thread
+                for t in self._threads:
+                    t.join()
+                if len(self.__list_server) < 2:
+                    print("Skip write file because empty server list")
+                    return
+                self.__write_csv_file(self.__file_path)
+        except Exception as ex:
+            print("Method: {0} throw exception: {1} at: {2}".format(
+                "run", ex, datetime.now()))
+        finally:
+            if os.path.exists(lock_file_path):
+                # Remove lock when complete
+                os.remove(lock_file_path)
 
     def run(self):
         lock_file_path = 'vpngate.lock'
-        can_run = True
         if (os.path.exists(lock_file_path)):
             with open(lock_file_path, 'r') as lock_file:
                 lock_time = datetime.strptime(
@@ -186,32 +243,8 @@ class VPNGate():
                 lock_file.close()
                 time_from_last_lock = datetime.now() - lock_time
                 if time_from_last_lock.total_seconds() > 60 * 20:
-                    can_run = True
                     print("Lock file expired. Script coninue to run.\n")
                 else:
-                    can_run = False
                     print("Lock file found. Script currently runing.\n")
-        if can_run:
-            try:
-                with open(lock_file_path, 'w') as lock_file:
-                    lock_file.write("{0}".format(datetime.now()))
-                    lock_file.close()
-                html = self.__get_url(self.__base_url+'/en/')
-                if html is not None:
-                    pq = PyQuery(html)
-                    self.__list_server.append([
-                        '#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort'
-                    ])
-                    openvpn_links = pq('#vg_hosts_table_id').eq(2).find('tr')
-                    openvpn_links.each(self.__process_item)
-                    if len(self.__list_server) < 2:
-                        print("Skip write file because empty server list")
-                        return
-                    self.__write_csv_file(self.__file_path)
-            except Exception as ex:
-                print("Method: {0} throw exception: {1} at: {2}".format(
-                    "run", ex, datetime.now()))
-            finally:
-                if os.path.exists(lock_file_path):
-                    # Remove lock when complete
-                    os.remove(lock_file_path)
+                    return
+        self.start_process(lock_file_path)
