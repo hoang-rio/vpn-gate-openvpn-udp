@@ -95,7 +95,7 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         # LogType
         server[11] = '2 Weeks'
         # Operator
-        server[12] = all_td.eq(8).find('b').eq(0).text().replace("By ", "")
+        server[12] = all_td.eq(8).find('b').eq(0).text().replace("By ", "").replace(",", "") # Remove , from operator
         # Message
         message = all_td.eq(8).find('i').eq(
             1).text().replace('"', '').replace(',', ' ')
