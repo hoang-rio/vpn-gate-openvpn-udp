@@ -9,6 +9,7 @@ import os
 from datetime import datetime
 import threading
 
+ERROR_MSG = "Method: {0} throw exception: {1} at: {2}"
 
 class VPNGateBase():
     def _get_url(self, url):
@@ -22,7 +23,7 @@ class VPNGateBase():
                 html = response.read().decode(encoding)
             return html
         except Exception as ex:
-            print("Method: {0} throw exception: {1} at: {2}".format(
+            print(ERROR_MSG.format(
                 "_get_url", ex, datetime.now()))
             return None
 
@@ -142,7 +143,7 @@ class VPNGateItem(VPNGateBase, threading.Thread):
             base64_config = base64_config.decode('utf-8')
             return base64_config
         except Exception as ex:
-            print("Method: {0} throw exception: {1} at: {2}".format(
+            print(ERROR_MSG.format(
                 "__get_openvpn_config_base64", ex, datetime.now()))
             return None
 
@@ -154,7 +155,7 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         href = a_tag.attr('href').replace('do_openvpn.aspx?', '')
         items = href.split('&')
         server = ['', '', '', '', '', '', '', '',
-                  '', '', '', '', '', '', '', '', '']
+                  '', '', '', '', '', '', '', '', '', '0']
         for item in items:
             props = item.split('=')
             if len(props) < 2:
@@ -170,6 +171,11 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         server = self.__fill_other_value(all_td, server)
         # OpenVPN_ConfigData_Base64
         server[14] = self.__get_openvpn_config_base64(items)
+        # L2TP support
+        a_l2tp = all_td.eq(5).find('a[href="howto_l2tp.aspx"]')
+        if a_l2tp.length > 0:
+            # Is L2TP Support
+            server[17] = '1'
         if server[14] is None:
             return  # openvpn_config_base64 is none skip this item
         if self.__getattribute__('__sleep_time') > 0:
@@ -215,7 +221,7 @@ class VPNGate(VPNGateBase):
             if html is not None:
                 pq = PyQuery(html)
                 self.__list_server.append([
-                    '#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort'
+                    '#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort', 'L2TP'
                 ])
                 openvpn_links = pq('#vg_hosts_table_id').eq(2).find('tr')
                 openvpn_links.each(self.__process_item)
@@ -227,7 +233,7 @@ class VPNGate(VPNGateBase):
                     return
                 self.__write_csv_file(self.__file_path)
         except Exception as ex:
-            print("Method: {0} throw exception: {1} at: {2}".format(
+            print(ERROR_MSG.format(
                 "run", ex, datetime.now()))
         finally:
             if os.path.exists(lock_file_path):
