@@ -7,7 +7,7 @@ Parse data from [www.vpngate.net](https://www.vpngate.net) and save it to csv fi
 
 ### Installation
 * Setup venv with `python -m venv venv` command
-* Activate venv with `veve\Script\activate` on Windows or `source venv\bin\activate` on Linux, Unix
+* Activate venv with `venv\Script\activate` on Windows or `source venv\bin\activate` on Linux, Unix
 * Install required python library with `pip install -r requirements.txt`
 
 ### How to run?
