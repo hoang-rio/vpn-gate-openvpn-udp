@@ -19,7 +19,5 @@ You can change output csv location in line 7 in file `__main__.py` like this
 # csv output file
 csv_file_path = "output/udp"
 ```
-### Donate
-* [Paypal](https://paypal.me/hoangrio)
 
 Made with ♥️ by [Hoàng Rio](https://hoangnguyendong.dev)
