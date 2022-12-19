@@ -46,7 +46,7 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         server[3] = all_td.eq(3).find('b').eq(1).text().replace(' ms', '')
         # Speed
         speed_text = all_td.eq(3).find('b').eq(
-            0).text().replace(' Mbps', '')
+            0).text().replace(' Mbps', '').replace(',', '')
         speed = float(speed_text)
         server[4] = int(speed * pow(1024, 2))
         # CountryLong
@@ -155,7 +155,7 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         href = a_tag.attr('href').replace('do_openvpn.aspx?', '')
         items = href.split('&')
         server = ['', '', '', '', '', '', '', '',
-                  '', '', '', '', '', '', '', '', '', '0']
+                  '', '', '', '', '', '', '', '', '', '0', '0']
         for item in items:
             props = item.split('=')
             if len(props) < 2:
@@ -176,6 +176,10 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         if a_l2tp.length > 0:
             # Is L2TP Support
             server[17] = '1'
+        # SSTP Support
+        a_sstp = all_td.eq(7).find('a[href="howto_sstp.aspx"]')
+        if a_sstp.length > 0:
+            server[18] = '1'
         if server[14] is None:
             return  # openvpn_config_base64 is none skip this item
         if self.__getattribute__('__sleep_time') > 0:
@@ -221,7 +225,7 @@ class VPNGate(VPNGateBase):
             if html is not None:
                 pq = PyQuery(html)
                 self.__list_server.append([
-                    '#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort', 'L2TP'
+                    '#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort', 'L2TP', 'SSTP'
                 ])
                 openvpn_links = pq('#vg_hosts_table_id').eq(2).find('tr')
                 openvpn_links.each(self.__process_item)
