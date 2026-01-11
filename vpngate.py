@@ -76,7 +76,7 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         total_user_text = all_td.eq(2).text()
         regex = r"Total\s([\d,]+)\susers"
         matches = re.finditer(regex, total_user_text)
-        for match_mum, match in enumerate(matches, start=1):
+        for _, match in enumerate(matches, start=1):
             total_user = match.group(1)
             server[9] = int(total_user.replace(',', ''))
             break
@@ -228,6 +228,8 @@ class VPNGate(VPNGateBase):
                     '#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort', 'L2TP', 'SSTP'
                 ])
                 openvpn_links = pq('#vg_hosts_table_id').eq(2).find('tr')
+                print("Total server found: {0}\n".format(openvpn_links.length - 1))
+                # Process each item
                 openvpn_links.each(self.__process_item)
                 # Join thread
                 for t in self._threads:
@@ -235,6 +237,7 @@ class VPNGate(VPNGateBase):
                 if len(self.__list_server) < 2:
                     print("Skip write file because empty server list")
                     return
+                print("Total server processed: {0}\n".format(len(self.__list_server) - 1))
                 self.__write_csv_file(self.__file_path)
         except Exception as ex:
             print(ERROR_MSG.format(
