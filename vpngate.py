@@ -151,6 +151,7 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         all_td = PyQuery(self.__getattribute__('__el')).find('td')
         a_tag = all_td.eq(6).find('a[href^="do_openvpn.aspx?"]')
         if a_tag.length == 0:
+            print(f"Skipped server: no OpenVPN link for index {self.__getattribute__('__index')}")
             return
         href = a_tag.attr('href').replace('do_openvpn.aspx?', '')
         items = href.split('&')
@@ -181,6 +182,7 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         if a_sstp.length > 0:
             server[18] = '1'
         if server[14] is None:
+            print(f"Skipped server: failed to get config for {server[0]} {server[1]}")
             return  # openvpn_config_base64 is none skip this item
         if self.__getattribute__('__sleep_time') > 0:
             time.sleep(self.__getattribute__('__sleep_time'))
@@ -244,7 +246,7 @@ class VPNGate(VPNGateBase):
                     '#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort', 'L2TP', 'SSTP'
                 ])
                 openvpn_links = pq('#vg_hosts_table_id').eq(2).find('tr')
-                print("Total server found: {0}\n".format(openvpn_links.length - 1))
+                print("Total server link found: {0}\n".format(openvpn_links.length - 1))
                 # Process each item
                 openvpn_links.each(self.__process_item)
                 # Join thread
