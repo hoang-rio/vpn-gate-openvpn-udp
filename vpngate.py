@@ -201,6 +201,7 @@ class VPNGate(VPNGateBase):
         self.__sleep_time = __sleep_time
         self.__list_server = [['*vpn_servers']]
         self._threads = []
+        self.active_threads = []
 
     def __write_csv_file(self, __file_path):
         csv.register_dialect('myDialect', delimiter=',', lineterminator='\n')
@@ -213,8 +214,12 @@ class VPNGate(VPNGateBase):
         t = VPNGateItem()
         t._set_data(__index=index, __el=el, __base_url=self.__base_url, __file_path=self.__file_path,
                     __sleep_time=self.__sleep_time, __list_server=self.__list_server)
-        self._threads.append(t)
+        self.active_threads.append(t)
         t.start()
+        if len(self.active_threads) >= 10:
+            self.active_threads[0].join()
+            self.active_threads.pop(0)
+        self._threads.append(t)
 
     def start_process(self, lock_file_path):
         try:
