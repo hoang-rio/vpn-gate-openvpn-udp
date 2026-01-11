@@ -195,13 +195,20 @@ class VPNGateItem(VPNGateBase, threading.Thread):
 
 class VPNGate(VPNGateBase):
 
-    def __init__(self, __base_url, __file_path, __sleep_time):
-        self.__base_url = __base_url
+    def __init__(self, __base_urls, __file_path, __sleep_time):
+        self.__base_urls = __base_urls
         self.__file_path = __file_path
         self.__sleep_time = __sleep_time
         self.__list_server = [['*vpn_servers']]
         self._threads = []
         self.active_threads = []
+
+    def _get_working_base_url(self):
+        for url in self.__base_urls:
+            html = self._get_url(url + '/en/')
+            if html is not None:
+                return (url, html)
+        return (None, None)
 
     def __write_csv_file(self, __file_path):
         csv.register_dialect('myDialect', delimiter=',', lineterminator='\n')
@@ -226,7 +233,11 @@ class VPNGate(VPNGateBase):
             with open(lock_file_path, 'w') as lock_file:
                 lock_file.write("{0}".format(datetime.now()))
                 lock_file.close()
-            html = self._get_url(self.__base_url+'/en/')
+            working_url, html = self._get_working_base_url()
+            if working_url is None:
+                print("No working base URL found.")
+                return
+            self.__base_url = working_url
             if html is not None:
                 pq = PyQuery(html)
                 self.__list_server.append([
