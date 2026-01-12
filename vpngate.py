@@ -105,8 +105,8 @@ class VPNGateItem(VPNGateBase, threading.Thread):
 
     def __get_openvpn_config_base64(self, item_params):
         try:
-            request_url = self.__getattribute__('__base_url') + \
-                '/common/openvpn_download.aspx?sid=%s&%s&host=%s&port=%s&hid=%s&/vpngate_%s.ovpn'
+            cache = self.__getattribute__('__openvpn_config_cache')
+            ip = tcp_port = udp_port = sid = hid = None
             for item in item_params:
                 props = item.split('=')
                 if len(props) < 2:
@@ -121,6 +121,24 @@ class VPNGateItem(VPNGateBase, threading.Thread):
                     sid = props[1]
                 elif props[0] == 'hid':
                     hid = props[1]
+            if tcp_port != '0':
+                key = ip + '_tcp_' + tcp_port
+            elif udp_port != '0':
+                key = ip + '_udp_' + udp_port
+            else:
+                return None
+            lock = self.__getattribute__('_cache_lock')
+            if key in cache:
+                lock.acquire()
+                self.__getattribute__('_cache_hits')[0] += 1
+                lock.release()
+                print(f"Using cached OpenVPN config for {key}")
+                return cache[key]
+            lock.acquire()
+            self.__getattribute__('_cache_misses')[0] += 1
+            lock.release()
+            request_url = self.__getattribute__('__base_url') + \
+                '/common/openvpn_download.aspx?sid=%s&%s&host=%s&port=%s&hid=%s&/vpngate_%s.ovpn'
             if tcp_port != '0':
                 request_url = request_url % (
                     sid, 'tcp=1', ip, tcp_port, hid, ip + '_tcp_'+tcp_port)
@@ -152,9 +170,9 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         a_tag = all_td.eq(6).find('a[href^="do_openvpn.aspx?"]')
         if a_tag.length == 0:
             if not all_td.eq(6).has_class('vg_table_header'):
-                print(f"Skipped server: no OpenVPN link for index {self.__getattribute__('__index')}")
-                # Print html content
-                print("HTML:", PyQuery(self.__getattribute__('__el')).html())
+                skip_msg = f"Skipped server: no OpenVPN link for index {self.__getattribute__('__index')}\n"
+                skip_msg += f"HTML: {PyQuery(self.__getattribute__('__el')).html()}"
+                print(skip_msg)
             return
         href = a_tag.attr('href').replace('do_openvpn.aspx?', '')
         items = href.split('&')
@@ -208,6 +226,29 @@ class VPNGate(VPNGateBase):
             ['*vpn_servers'],
             ['#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort', 'L2TP', 'SSTP']
         ]
+        self.__openvpn_config_cache = {}
+        # Load existing configs from previous run
+        if os.path.exists(__file_path):
+            with open(__file_path, 'r', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                next(reader, None)  # skip header
+                for row in reader:
+                    if len(row) < 17:  # ensure enough columns
+                        continue
+                    ip = row[1]
+                    tcp_port = row[15]
+                    udp_port = row[16]
+                    base64_config = row[13]
+                    if tcp_port != '0':
+                        key = ip + '_tcp_' + tcp_port
+                    elif udp_port != '0':
+                        key = ip + '_udp_' + udp_port
+                    else:
+                        continue
+                    self.__openvpn_config_cache[key] = base64_config
+        self._cache_hits = [0]
+        self._cache_misses = [0]
+        self._cache_lock = threading.Lock()
         self._threads = []
         self.active_threads = []
 
@@ -228,7 +269,8 @@ class VPNGate(VPNGateBase):
     def __process_item(self, index, el):
         t = VPNGateItem()
         t._set_data(__index=index, __el=el, __base_url=self.__base_url, __file_path=self.__file_path,
-                    __sleep_time=self.__sleep_time, __list_server=self.__list_server)
+                    __sleep_time=self.__sleep_time, __list_server=self.__list_server, __openvpn_config_cache=self.__openvpn_config_cache,
+                    _cache_hits=self._cache_hits, _cache_misses=self._cache_misses, _cache_lock=self._cache_lock)
         self.active_threads.append(t)
         t.start()
         if len(self.active_threads) >= 10:
@@ -256,6 +298,7 @@ class VPNGate(VPNGateBase):
                 # Join thread
                 for t in self._threads:
                     t.join()
+                print(f"Cache hits: {self._cache_hits[0]}, Cache misses: {self._cache_misses[0]}")
                 if len(self.__list_server) < 2:
                     print("Skip write file because empty server list")
                     return
