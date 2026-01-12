@@ -133,7 +133,7 @@ class VPNGateItem(VPNGateBase, threading.Thread):
             else:
                 return None
             lock = self._cache_lock
-            if key in cache:
+            if key in cache and cache[key] != "":
                 lock.acquire()
                 self._cache_hits[0] += 1
                 lock.release()
@@ -237,13 +237,14 @@ class VPNGate(VPNGateBase):
             with open(__file_path, 'r', encoding='utf-8') as f:
                 reader = csv.reader(f)
                 next(reader, None)  # skip header
+                next(reader, None)  # skip second header
                 for row in reader:
                     if len(row) < 17:  # ensure enough columns
                         continue
                     ip = row[1]
                     tcp_port = row[15]
                     udp_port = row[16]
-                    base64_config = row[13]
+                    base64_config = row[14]
                     if tcp_port != '0':
                         key = ip + '_tcp_' + tcp_port
                     elif udp_port != '0':
