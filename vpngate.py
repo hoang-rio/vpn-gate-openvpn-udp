@@ -149,10 +149,11 @@ class VPNGateItem(VPNGateBase, threading.Thread):
 
     def __process_item(self):
         all_td = PyQuery(self.__getattribute__('__el')).find('td')
-        a_tag = all_td.eq(6).find('a[href^="do_openvpn.aspx?"]')
+        a_tag = all_td.find('a[href^="do_openvpn.aspx?"]')
         if a_tag.length == 0:
             print(f"Skipped server: no OpenVPN link for index {self.__getattribute__('__index')}")
-            print(all_td.eq(6).html())
+            # Print text content
+            print("HTML:", PyQuery(self.__getattribute__('__el')).html())
             return
         href = a_tag.attr('href').replace('do_openvpn.aspx?', '')
         items = href.split('&')
