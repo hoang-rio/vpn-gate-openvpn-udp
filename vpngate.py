@@ -201,7 +201,10 @@ class VPNGate(VPNGateBase):
         self.__base_urls = __base_urls
         self.__file_path = __file_path
         self.__sleep_time = __sleep_time
-        self.__list_server = [['*vpn_servers']]
+        self.__list_server = [
+            ['*vpn_servers'],
+            ['#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort', 'L2TP', 'SSTP']
+        ]
         self._threads = []
         self.active_threads = []
 
@@ -242,11 +245,8 @@ class VPNGate(VPNGateBase):
             self.__base_url = working_url
             if html is not None:
                 pq = PyQuery(html)
-                self.__list_server.append([
-                    '#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort', 'L2TP', 'SSTP'
-                ])
                 openvpn_links = pq('#vg_hosts_table_id').eq(2).find('tr')
-                print("Total server link found: {0}\n".format(openvpn_links.length - 1))
+                print("Total server tr found: {0}\n".format(openvpn_links.length - 1))
                 # Process each item
                 openvpn_links.each(self.__process_item)
                 # Join thread
@@ -255,7 +255,7 @@ class VPNGate(VPNGateBase):
                 if len(self.__list_server) < 2:
                     print("Skip write file because empty server list")
                     return
-                print("Total server processed: {0}\n".format(len(self.__list_server) - 1))
+                print("Total server processed: {0}\n".format(len(self.__list_server) - 2))
                 self.__write_csv_file(self.__file_path)
         except Exception as ex:
             print(ERROR_MSG.format(
