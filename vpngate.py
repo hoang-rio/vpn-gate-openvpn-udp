@@ -242,6 +242,7 @@ class VPNGate(VPNGateBase):
             if working_url is None:
                 print("No working base URL found.")
                 return
+            print(f"Selected working base url: '{working_url}'\n")
             self.__base_url = working_url
             if html is not None:
                 pq = PyQuery(html)
