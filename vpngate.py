@@ -29,12 +29,17 @@ class VPNGateBase():
 
 
 class VPNGateItem(VPNGateBase, threading.Thread):
-    def _set_data(self, *args, **kwargs):
-        """
-        Set class attribute
-        """
-        for key, value in kwargs.items():
-            self.__setattr__(key, value)
+    def __init__(self, _index, _el, _base_url, _sleep_time, _list_server, _openvpn_config_cache, _cache_hits, _cache_misses, _cache_lock):
+        super().__init__()
+        self.__index = _index
+        self.__el = _el
+        self.__base_url = _base_url
+        self.__sleep_time = _sleep_time
+        self.__list_server = _list_server
+        self.__openvpn_config_cache = _openvpn_config_cache
+        self._cache_hits = _cache_hits
+        self._cache_misses = _cache_misses
+        self._cache_lock = _cache_lock
     ##
     # Fill another value
     ##
@@ -105,7 +110,7 @@ class VPNGateItem(VPNGateBase, threading.Thread):
 
     def __get_openvpn_config_base64(self, item_params):
         try:
-            cache = self.__getattribute__('__openvpn_config_cache')
+            cache = self.__openvpn_config_cache
             ip = tcp_port = udp_port = sid = hid = None
             for item in item_params:
                 props = item.split('=')
@@ -127,17 +132,17 @@ class VPNGateItem(VPNGateBase, threading.Thread):
                 key = ip + '_udp_' + udp_port
             else:
                 return None
-            lock = self.__getattribute__('_cache_lock')
+            lock = self._cache_lock
             if key in cache:
                 lock.acquire()
-                self.__getattribute__('_cache_hits')[0] += 1
+                self._cache_hits[0] += 1
                 lock.release()
                 print(f"Using cached OpenVPN config for {key}")
                 return cache[key]
             lock.acquire()
-            self.__getattribute__('_cache_misses')[0] += 1
+            self._cache_misses[0] += 1
             lock.release()
-            request_url = self.__getattribute__('__base_url') + \
+            request_url = self.__base_url + \
                 '/common/openvpn_download.aspx?sid=%s&%s&host=%s&port=%s&hid=%s&/vpngate_%s.ovpn'
             if tcp_port != '0':
                 request_url = request_url % (
@@ -166,12 +171,12 @@ class VPNGateItem(VPNGateBase, threading.Thread):
             return None
 
     def __process_item(self):
-        all_td = PyQuery(self.__getattribute__('__el')).find('td')
+        all_td = PyQuery(self.__el).find('td')
         a_tag = all_td.eq(6).find('a[href^="do_openvpn.aspx?"]')
         if a_tag.length == 0:
             if not all_td.eq(6).has_class('vg_table_header'):
-                skip_msg = f"Skipped server: no OpenVPN link for index {self.__getattribute__('__index')}\n"
-                skip_msg += f"HTML: {PyQuery(self.__getattribute__('__el')).html()}"
+                skip_msg = f"Skipped server: no OpenVPN link for index {self.__index}\n"
+                skip_msg += f"HTML: {PyQuery(self.__el).html()}"
                 print(skip_msg)
             return
         href = a_tag.attr('href').replace('do_openvpn.aspx?', '')
@@ -205,10 +210,10 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         if server[14] is None:
             print(f"Skipped server: failed to get config for {server[0]} {server[1]}")
             return  # openvpn_config_base64 is none skip this item
-        if self.__getattribute__('__sleep_time') > 0:
-            time.sleep(self.__getattribute__('__sleep_time'))
+        if self.__sleep_time > 0:
+            time.sleep(self.__sleep_time)
         self.lock.acquire()
-        self.__getattribute__('__list_server').append(server)
+        self.__list_server.append(server)
         self.lock.release()
 
     def run(self):
@@ -250,7 +255,7 @@ class VPNGate(VPNGateBase):
         self._cache_misses = [0]
         self._cache_lock = threading.Lock()
         self._threads = []
-        self.active_threads = []
+        self._active_threads = []
 
     def _get_working_base_url(self):
         for url in self.__base_urls:
@@ -266,16 +271,15 @@ class VPNGate(VPNGateBase):
             writer.writerows(self.__list_server)
         write_file.close()
 
-    def __process_item(self, index, el):
-        t = VPNGateItem()
-        t._set_data(__index=index, __el=el, __base_url=self.__base_url, __file_path=self.__file_path,
-                    __sleep_time=self.__sleep_time, __list_server=self.__list_server, __openvpn_config_cache=self.__openvpn_config_cache,
-                    _cache_hits=self._cache_hits, _cache_misses=self._cache_misses, _cache_lock=self._cache_lock)
-        self.active_threads.append(t)
+    def __process_item(self, _index, _el):
+        t = VPNGateItem(_index=_index, _el=_el, _base_url=self.__base_url,
+                        _sleep_time=self.__sleep_time, _list_server=self.__list_server, _openvpn_config_cache=self.__openvpn_config_cache,
+                        _cache_hits=self._cache_hits, _cache_misses=self._cache_misses, _cache_lock=self._cache_lock)
+        self._active_threads.append(t)
         t.start()
-        if len(self.active_threads) >= 10:
-            self.active_threads[0].join()
-            self.active_threads.pop(0)
+        if len(self._active_threads) >= 10:
+            self._active_threads[0].join()
+            self._active_threads.pop(0)
         self._threads.append(t)
 
     def start_process(self, lock_file_path):
