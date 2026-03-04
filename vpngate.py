@@ -182,7 +182,7 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         href = a_tag.attr('href').replace('do_openvpn.aspx?', '')
         items = href.split('&')
         server = ['', '', '', '', '', '', '', '',
-                  '', '', '', '', '', '', '', '', '', '0', '0']
+                  '', '', '', '', '', '', '', '', '', '0', '0', '', '0']
         for item in items:
             props = item.split('=')
             if len(props) < 2:
@@ -207,6 +207,21 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         a_sstp = all_td.eq(7).find('a[href="howto_sstp.aspx"]')
         if a_sstp.length > 0:
             server[18] = '1'
+        # SoftEther Port
+        softether_text = all_td.eq(4).text()
+        # Check if SoftEther support by text "TCP: 1234"
+        regex = r"TCP:\s(\d+)"
+        matches = re.finditer(regex, softether_text)
+        for _, match in enumerate(matches, start=1):
+            softether_port = match.group(1)
+            server[19] = softether_port
+            break
+        # SoftEther UDP Support by text "UDP: Supported"
+        regex = r"UDP:\s(Supported)"
+        matches = re.finditer(regex, softether_text)
+        for _, match in enumerate(matches, start=1):
+            server[20] = '1'
+            break
         if server[14] is None:
             print(f"Skipped server: failed to get config for {server[0]} {server[1]}")
             return  # openvpn_config_base64 is none skip this item
@@ -229,7 +244,8 @@ class VPNGate(VPNGateBase):
         self.__sleep_time = __sleep_time
         self.__list_server = [
             ['*vpn_servers'],
-            ['#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions', 'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort', 'L2TP', 'SSTP']
+            ['#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions',
+                'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort', 'L2TP', 'SSTP', 'SETcpPort', 'SEUdp']
         ]
         self.__openvpn_config_cache = {}
         # Load existing configs from previous run
