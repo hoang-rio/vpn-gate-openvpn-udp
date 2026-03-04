@@ -182,7 +182,7 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         href = a_tag.attr('href').replace('do_openvpn.aspx?', '')
         items = href.split('&')
         server = ['', '', '', '', '', '', '', '',
-                  '', '', '', '', '', '', '', '', '', '0', '0', '', '0']
+                  '', '', '', '', '', '', '', '', '', '0', '0', '', '']
         for item in items:
             props = item.split('=')
             if len(props) < 2:
@@ -220,7 +220,12 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         regex = r"UDP:\s(Supported)"
         matches = re.finditer(regex, softether_text)
         for _, match in enumerate(matches, start=1):
-            server[20] = '1'
+            if server[19] == '':
+                # If SoftEther TCP port not found but UDP support exist, set SEUdp port same as OpenVPN UDP port
+                server[20] = server[16]
+            else:
+                # If SoftEther TCP port found, set SEUdp port same as SE TCP port because usually SE use same port for both TCP and UDP
+                server[20] = server[19]
             break
         if server[14] is None:
             print(f"Skipped server: failed to get config for {server[0]} {server[1]}")
@@ -245,7 +250,7 @@ class VPNGate(VPNGateBase):
         self.__list_server = [
             ['*vpn_servers'],
             ['#HostName', 'IP', 'Score', 'Ping', 'Speed', 'CountryLong', 'CountryShort', 'NumVpnSessions',
-                'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort', 'L2TP', 'SSTP', 'SETcpPort', 'SEUdp']
+                'Uptime', 'TotalUsers', 'TotalTraffic', 'LogType', 'Operator', 'Message', 'OpenVPN_ConfigData_Base64', 'TcpPort', 'UdpPort', 'L2TP', 'SSTP', 'SETcpPort', 'SEUdpPort']
         ]
         self.__openvpn_config_cache = {}
         # Load existing configs from previous run
