@@ -220,10 +220,7 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         regex = r"UDP:\s(Supported)"
         matches = re.finditer(regex, softether_text)
         for _, match in enumerate(matches, start=1):
-            if server[19] == '0':
-                # If SoftEther TCP port not found but UDP support exist, set SEUdp port same as OpenVPN UDP port
-                server[20] = server[16]
-            else:
+            if server[19] != '0':
                 # If SoftEther TCP port found, set SEUdp port same as SE TCP port because usually SE use same port for both TCP and UDP
                 server[20] = server[19]
             break
