@@ -40,11 +40,20 @@ class VPNGateItem(VPNGateBase, threading.Thread):
         self._cache_hits = _cache_hits
         self._cache_misses = _cache_misses
         self._cache_lock = _cache_lock
+
+    OPENGW_DOMAIN = '.opengw.net'
+
     ##
     # Fill another value
     ##
 
     def __fill_other_value(self, all_td, server):
+        # Host
+        if server[0] == '':
+            server[0] = all_td.eq(1).find('b').eq(0).text().replace(self.OPENGW_DOMAIN,'')
+        # IP
+        if server[1] == '':
+            server[1] = all_td.eq(1).find('span').eq(1).text()
         # Score
         server[2] = int(all_td.eq(9).text().replace(',', ''))
         # Ping
@@ -137,7 +146,7 @@ class VPNGateItem(VPNGateBase, threading.Thread):
                 lock.acquire()
                 self._cache_hits[0] += 1
                 lock.release()
-                print(f"Using cached OpenVPN config for {key}")
+                print(f"Using cached OpenVPN config for {key}\n")
                 return cache[key]
             lock.acquire()
             self._cache_misses[0] += 1
@@ -171,33 +180,36 @@ class VPNGateItem(VPNGateBase, threading.Thread):
             return None
 
     def __process_item(self):
+        server = ['', '', '', '', '', '', '', '',
+                '', '', '', '', '', '', '', '', '', '0', '0', '0', '0']
         all_td = PyQuery(self.__el).find('td')
         a_tag = all_td.eq(6).find('a[href^="do_openvpn.aspx?"]')
         if a_tag.length == 0:
             if not all_td.eq(6).has_class('vg_table_header'):
-                skip_msg = f"Skipped server: no OpenVPN link for index {self.__index}\n"
+                skip_msg = f"[INFO]: no OpenVPN link for index {self.__index}\n"
                 skip_msg += f"HTML: {PyQuery(self.__el).html()}"
                 print(skip_msg)
-            return
-        href = a_tag.attr('href').replace('do_openvpn.aspx?', '')
-        items = href.split('&')
-        server = ['', '', '', '', '', '', '', '',
-                  '', '', '', '', '', '', '', '', '', '0', '0', '0', '0']
-        for item in items:
-            props = item.split('=')
-            if len(props) < 2:
-                continue
-            if props[0] == 'fqdn':
-                server[0] = props[1].replace('.opengw.net', '')
-            elif props[0] == 'ip':
-                server[1] = props[1]
-            elif props[0] == 'tcp':
-                server[15] = props[1]
-            elif props[0] == 'udp':
-                server[16] = props[1]
+            else:
+                print(f"Skip header row at: {self.__index}\n")
+                return
+        else:
+            href = a_tag.attr('href').replace('do_openvpn.aspx?', '')
+            items = href.split('&')
+            for item in items:
+                props = item.split('=')
+                if len(props) < 2:
+                    continue
+                if props[0] == 'fqdn':
+                    server[0] = props[1].replace(self.OPENGW_DOMAIN, '')
+                elif props[0] == 'ip':
+                    server[1] = props[1]
+                elif props[0] == 'tcp':
+                    server[15] = props[1]
+                elif props[0] == 'udp':
+                    server[16] = props[1]
+            # OpenVPN_ConfigData_Base64
+            server[14] = self.__get_openvpn_config_base64(items)
         server = self.__fill_other_value(all_td, server)
-        # OpenVPN_ConfigData_Base64
-        server[14] = self.__get_openvpn_config_base64(items)
         # L2TP support
         a_l2tp = all_td.eq(5).find('a[href="howto_l2tp.aspx"]')
         if a_l2tp.length > 0:
@@ -223,10 +235,16 @@ class VPNGateItem(VPNGateBase, threading.Thread):
             if server[19] != '0':
                 # If SoftEther TCP port found, set SEUdp port same as SE TCP port because usually SE use same port for both TCP and UDP
                 server[20] = server[19]
+            elif server[16] != 0:
+                # If SoftEther TCP port not found but UDP support exist, set SEUdp port same as OpenVPN UDP port
+                server[20] = server[16]
+            else:
+                # Both OpenVPN UDP port and SoftEther TCP port not found. Use 443 as default port to connect with NAT-T
+                server[20] = '443'
             break
         if server[14] is None:
-            print(f"Skipped server: failed to get config for {server[0]} {server[1]}")
-            return  # openvpn_config_base64 is none skip this item
+            print(f"[INFO] No OpenVPN config for {server[0]} {server[1]}")
+            # return  # openvpn_config_base64 is none skip this item
         if self.__sleep_time > 0:
             time.sleep(self.__sleep_time)
         self.lock.acquire()
