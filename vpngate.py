@@ -235,12 +235,6 @@ class VPNGateItem(VPNGateBase, threading.Thread):
             if server[19] != '0':
                 # If SoftEther TCP port found, set SEUdp port same as SE TCP port because usually SE use same port for both TCP and UDP
                 server[20] = server[19]
-            elif server[16] != 0:
-                # If SoftEther TCP port not found but UDP support exist, set SEUdp port same as OpenVPN UDP port
-                server[20] = server[16]
-            else:
-                # Both OpenVPN UDP port and SoftEther TCP port not found. Use 443 as default port to connect with NAT-T
-                server[20] = '443'
             break
         if server[14] is None:
             print(f"[INFO] No OpenVPN config for {server[0]} {server[1]}")
